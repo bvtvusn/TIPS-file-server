@@ -351,7 +351,7 @@ $html += @"
 
 foreach ($url in $serverUrls)
 {
-    $html += "<a href='$url' target='_blank'>$url</a><br>"
+    $html += "<a href='$($url.Prefix)' target='_blank'>$($url.Prefix)  ($($url.AdapterName))</a><br>"
 }
   
 $html += @"		
@@ -432,17 +432,21 @@ if (-not $isAdmin) {
     $listener = New-Object System.Net.HttpListener
     # Get a list of all the IPv4 addresses assigned to network adapters on the computer
     $ipAddresses = Get-NetIPAddress | Where-Object {$_.AddressFamily -eq "IPv4"}
-    $prefixList = @()
-    foreach ($ipAddress in $ipAddresses) {      # Loop through the IPv4 addresses and check if their associated adapter is up
-        $adapter = Get-NetAdapter | Where-Object {$_.InterfaceIndex -eq $ipAddress.InterfaceIndex}
-        if ($adapter.Status -eq "Up") {
-            $ipString = $ipAddress.IPAddress.ToString()
-            $prefix = "http://$($ipString):$port/"
-            Write-Host $prefix
-            $prefixList += $prefix
-            $listener.Prefixes.Add($prefix)
-        }
-    }
+    $prefixList = @()  	
+	foreach ($ipAddress in $ipAddresses) {
+		$adapter = Get-NetAdapter | Where-Object { $_.InterfaceIndex -eq $ipAddress.InterfaceIndex }		
+		if ($adapter.Status -eq "Up") {
+			$ipString = $ipAddress.IPAddress.ToString()
+			$prefix = "http://$($ipString):$port/"			
+			$prefixObject = [PSCustomObject]@{
+				Prefix = $prefix
+				AdapterName = $adapter.Name
+			}			
+			Write-Host $prefixObject.Prefix			
+			$prefixList += $prefixObject
+			$listener.Prefixes.Add($prefix)
+		}
+	}
     $listener.Start()
 
 
