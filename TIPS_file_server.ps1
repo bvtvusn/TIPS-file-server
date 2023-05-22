@@ -468,7 +468,7 @@ $html += @"
 "@
 					$html += "Item Type:"  
 					$html += "</td><td>" 
-					$html += "File"
+					$html += "$($InfoObject.ObjType)"
 					$html += "</td></tr><tr><td>"
 					
 					$html += "Path:"  
@@ -478,12 +478,12 @@ $html += @"
 					
 					$html += "Creation Date:"  
 					$html += "</td><td>" 
-					$html += "File"
+					$html += "$($InfoObject.CreationDate)"
 					$html += "</td></tr><tr><td>"
 					
 					$html += "Size:"  
 					$html += "</td><td>" 
-					$html += "File"
+					$html += "$($InfoObject.Size)"
 					$html += "</td></tr><tr><td>"
 					
 					$html += "Download:"  
