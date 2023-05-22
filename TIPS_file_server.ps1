@@ -174,17 +174,8 @@ $outputStream.Close()
 
 }
 
-function GetHtmlPage ($computerPath, $webAddress, $serverUrls) {
-$html = @"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>File Browser</title>
-	<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAAREREQARERERERERABERERAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABE//wAAP/8AAD5/AAA+fwAAPn8AAD5/AAA+fwAAAAAAAAAAAAD+fAAA/nwAAP58AADgBAAA4AQAAP/8AAD//AAA" />
-	<!-- <link rel="stylesheet" href="style.css"> -->
-	<style>
+function GetCSS(){
+	$myCss = @"
 /* Global Styles */
 body {
 	font-family: Arial, sans-serif;
@@ -288,6 +279,39 @@ input[type=submit]:hover, input[type=file]::file-selector-button:hover {
   background: #272838;
   color: white;
 }
+
+
+
+table { 
+    border-collapse: collapse; 	
+}
+tr + tr > td{
+  border-top: 1px solid black;
+  border-color: lightgrey;
+}
+td {
+    padding: 0 15px;
+  }
+"@
+	
+	return $myCss
+}
+
+function GetHtmlPage ($computerPath, $webAddress, $serverUrls) {
+$html = @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>File Browser</title>
+	<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAAREREQARERERERERABERERAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABE//wAAP/8AAD5/AAA+fwAAPn8AAD5/AAA+fwAAAAAAAAAAAAD+fAAA/nwAAP58AADgBAAA4AQAAP/8AAD//AAA" />
+	<!-- <link rel="stylesheet" href="style.css"> -->
+	<style>
+"@
+
+$html += GetCSS
+$html += @"
 	</style>
 </head>
 <body>
@@ -410,6 +434,88 @@ $html += @"
 }
 
 
+function GetHtmlInfoPage ($computerPath, $webAddress, $InfoObject) {
+$html = @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>File Browser</title>
+	<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAAREREQARERERERERABERERAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABEAAAAAAAAAEQAAAAAAAAARAAAAAAAAABE//wAAP/8AAD5/AAA+fwAAPn8AAD5/AAA+fwAAAAAAAAAAAAD+fAAA/nwAAP58AADgBAAA4AQAAP/8AAD//AAA" />
+	<!-- <link rel="stylesheet" href="style.css"> -->
+	<style>
+"@
+
+$html += GetCSS
+$html += @"
+	</style>
+</head>
+<body>
+	<header class="header">
+    <h1>TIPS - Powershell File Server</h1>
+  </header>
+	<div class="container">		
+		<div class="card">
+			<div class="card-header">
+				<h2>Item info</h2>
+			</div>
+			<div class="card-body">
+				
+				<table>
+				  <tbody>
+					<tr><td>
+"@
+					$html += "Item Type:"  
+					$html += "</td><td>" 
+					$html += "File"
+					$html += "</td></tr><tr><td>"
+					
+					$html += "Path:"  
+					$html += "</td><td>" 
+					$html += "$($InfoObject.Path)"
+					$html += "</td></tr><tr><td>"
+					
+					$html += "Creation Date:"  
+					$html += "</td><td>" 
+					$html += "File"
+					$html += "</td></tr><tr><td>"
+					
+					$html += "Size:"  
+					$html += "</td><td>" 
+					$html += "File"
+					$html += "</td></tr><tr><td>"
+					
+					$html += "Download:"  
+					$html += "</td><td>" 
+					$html += "File"
+					$html += "</td></tr><tr><td>"
+					
+					$html += "View:"  
+					$html += "</td><td>" 
+					$html += "<a href='$parentfolder'>Here</a>"
+					$html += "</td></tr>"
+					
+					
+					
+					
+					
+					
+$html += @"
+</tbody>
+				</table>
+				
+			</div>
+		</div>					
+	</div>
+</body>
+</html>
+"@
+    return $html
+}
+
+
+
 
 
 # Check if the script is running as an administrator
@@ -481,52 +587,83 @@ if (-not $isAdmin) {
         Write-Output $curPath_Web
 
         if ($request.HttpMethod -eq "GET") {
-        
-            if (Test-Path $curPath_PC -PathType Container) 
-            {
-
-                # ----- Check if the Get request contains any parameters ----- #
+			
+			$detailPageFlag = $false
+			# ----- Check if the Get request contains any parameters ----- #
                         
-                $queryString = $request.Url.Query
-                $queryString = $queryString.TrimStart("?")
-                $parts = $queryString.Split("&")
+			$queryString = $request.Url.Query
+			$queryString = $queryString.TrimStart("?")
+			$parts = $queryString.Split("&")
 
-                foreach ($part in $parts) {
-                    $nameValue = $part.Split("=")
-                    $name = [System.Uri]::UnescapeDataString($nameValue[0])
-                    $value = if ($nameValue.Length -gt 1) {
-                        [System.Uri]::UnescapeDataString($nameValue[1])
-                    } else {
-                        $null
-                    }
-                
-                    if($name -eq "setfirewall" -and $value -eq "open"){
-                        Write-Host "Opening firewall port"
-                        Set-PsFirewallPort -Enabled $true
-                    }
-                    
-                    if($name -eq "setfirewall" -and $value -eq "close"){
-                        Write-Host "Closing firewall port"
-                        Set-PsFirewallPort -Enabled $false
-                    }
+			foreach ($part in $parts) {
+				$nameValue = $part.Split("=")
+				$name = [System.Uri]::UnescapeDataString($nameValue[0])
+				$value = if ($nameValue.Length -gt 1) {
+					[System.Uri]::UnescapeDataString($nameValue[1])
+				} else {
+					$null
+				}
+			
+				if($name -eq "setfirewall" -and $value -eq "open"){
+					Write-Host "Opening firewall port"
+					Set-PsFirewallPort -Enabled $true
+				}
+				
+				if($name -eq "setfirewall" -and $value -eq "close"){
+					Write-Host "Closing firewall port"
+					Set-PsFirewallPort -Enabled $false
+				}
 
-                    if($name -eq "cmd" -and $value -eq "stop"){
-                        Write-Output "Stopping the server"
-                        # stop the server
-                        $listener.Stop()
-                    }
+				if($name -eq "cmd" -and $value -eq "stop"){
+					Write-Output "Stopping the server"
+					# stop the server
+					$listener.Stop()
+				}
+				if($name -eq "page" -and $value -eq "info"){
+					$detailPageFlag = $true
+				}
 
-                }
+			}
 
-                if (!$listener.IsListening){
-                    break # If listener was set to stop, break immediately to avoid unnecessary errors.
-                }
-            
+			if (!$listener.IsListening){
+				break # If listener was set to stop, break immediately to avoid unnecessary errors.
+			}
+				
+			if($detailPageFlag -eq $true){
+				# ----- xxx ----- #
+                # 
+                Write-Output "Serving the web page"
+				
+                $response.ContentType = "text/html"
+                $response.StatusCode = 200
+                $response.StatusDescription = "OK"
 
 
+				$ItemInfoObject = [PSCustomObject]@{
+					ObjType = "a"
+					Path = "b"
+					CreationDate = "c"
+					Size = "d"
+				}				
+				if (Test-Path $curPath_PC -PathType Leaf){
+					$ItemInfoObject.ObjType = "File"
+				}
+				else 
+				{
+					$ItemInfoObject.ObjType = "Folder"
+				}
+				#Write-Output $ItemInfoObject.ObjType
+				
+				
 
-
-
+                $html = GetHtmlInfoPage $curPath_PC $curPath_Web $ItemInfoObject
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($html)
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+				
+			}	
+            elseif (Test-Path $curPath_PC -PathType Container) 
+            {
 
                 # ----- Display web page for current folder ----- #
                 # 
@@ -592,3 +729,4 @@ if (-not $isAdmin) {
 
 
 }
+Read-Host
