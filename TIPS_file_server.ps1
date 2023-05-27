@@ -1,3 +1,22 @@
+function Test-PathType {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Path
+    )
+
+    if (Test-Path -Path $Path) {
+        $itemType = (Get-Item -Path $Path).PSIsContainer
+        if ($itemType) {
+            return 2  # Folder
+        } else {
+            return 1  # File
+        }
+    } else {
+        return 0  # Does not exist
+    }
+}
+
 function Get-FirewallRuleState {
     param (
         [string]$RuleName
@@ -597,6 +616,7 @@ if (-not $isAdmin) {
 
         $curPath_Web = $request.Url.LocalPath
         $curPath_PC  = Join-Path -Path $basePathPC -ChildPath $curPath_Web
+		$ElementTypeRequested = Test-PathType -Path $curPath_PC #0 = does not exist, 1 = file, 2 = folder
         #Write-Output $curPath_PC
         Write-Output $curPath_Web
 
@@ -643,7 +663,7 @@ if (-not $isAdmin) {
 				break # If listener was set to stop, break immediately to avoid unnecessary errors.
 			}
 				
-			if($detailPageFlag -eq $true){
+			if($detailPageFlag -eq $true -AND $ElementTypeRequested -ne 0){ # element not equal to invalid
 				# ----- xxx ----- #
                 # 
                 Write-Output "Serving the web page"
@@ -666,6 +686,7 @@ if (-not $isAdmin) {
 				{
 					$ItemInfoObject.ObjType = "Folder"
 				}
+				$ItemInfoObject.Path = curPath_Web
 				#Write-Output $ItemInfoObject.ObjType
 				
 				
@@ -676,7 +697,7 @@ if (-not $isAdmin) {
                 $response.Close()
 				
 			}	
-            elseif (Test-Path $curPath_PC -PathType Container) 
+            elseif ($ElementTypeRequested -eq 2) # Found folder
             {
 
                 # ----- Display web page for current folder ----- #
@@ -693,7 +714,7 @@ if (-not $isAdmin) {
                 $response.Close()
 
             }
-            elseif (Test-Path $curPath_PC -PathType Leaf)
+            elseif ($ElementTypeRequested -eq 1) # Found file
             {
                 # serve file to the user.
                 Write-Output "Serving the file to the user"
@@ -719,7 +740,8 @@ if (-not $isAdmin) {
             }
             else
             {
-                # Not found error message
+                # "Not found" error message
+				Write-Output "404, page not found"
                 $response.StatusCode = 404
                 $response.StatusDescription = "Not Found"
                 $response.Close()
