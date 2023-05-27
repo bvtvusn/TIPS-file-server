@@ -1,3 +1,24 @@
+function Get-Size {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Path
+    )
+
+    if (Test-Path -Path $Path) {
+        $itemType = (Get-Item -Path $Path).PSIsContainer
+        if ($itemType) {
+            $size = (Get-ChildItem -Path $Path -Recurse | Measure-Object -Property Length -Sum).Sum
+        } else {
+            $size = (Get-Item -Path $Path).Length
+        }
+
+        return $size
+    } else {
+        return -1  # Path does not exist
+    }
+}
+
 function Test-PathType {
     param(
         [Parameter(Mandatory = $true)]
@@ -488,10 +509,19 @@ $html += @"
 	<header class="header">
     <h1>TIPS - Powershell File Server</h1>
   </header>
-	<div class="container">		
+  <a class="container" href="javascript:history.back() style="color: black;">
+	  <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" class="bi bi-box-arrow-left" viewBox="0 0 16 16">
+		  <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0v2z"/>
+		  <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/>
+	  </svg>
+  </a>
+	<div class="container">	
+
+
+	
 		<div class="card">
 			<div class="card-header">
-				<h2>Item info</h2>
+				<h2>$($InfoObject.ObjType) Info</h2>
 			</div>
 			<div class="card-body">
 				
@@ -499,10 +529,7 @@ $html += @"
 				  <tbody>
 					<tr><td>
 "@
-					$html += "Item Type:"  
-					$html += "</td><td>" 
-					$html += "$($InfoObject.ObjType)"
-					$html += "</td></tr><tr><td>"
+					
 					
 					$html += "Path:"  
 					$html += "</td><td>" 
@@ -514,6 +541,13 @@ $html += @"
 					$html += "$($InfoObject.CreationDate)"
 					$html += "</td></tr><tr><td>"
 					
+					$html += "Last Write Time:"  
+					$html += "</td><td>" 
+					$html += "$($InfoObject.LastWriteTime)"
+					$html += "</td></tr><tr><td>"
+					
+					
+					
 					$html += "Size:"  
 					$html += "</td><td>" 
 					$html += "$($InfoObject.Size)"
@@ -521,7 +555,7 @@ $html += @"
 					
 					$html += "Download:"  
 					$html += "</td><td>" 
-					$html += "File"
+					$html += "<a href='$($linkpath)'>$($InfoObject.FileName)</a>"
 					$html += "</td></tr><tr><td>"
 					
 					$html += "View:"  
@@ -676,7 +710,9 @@ if (-not $isAdmin) {
 				$ItemInfoObject = [PSCustomObject]@{
 					ObjType = "a"
 					Path = "b"
+					FileName = "f"
 					CreationDate = "c"
+					LastWriteTime = "L"
 					Size = "d"
 				}				
 				if (Test-Path $curPath_PC -PathType Leaf){
@@ -686,7 +722,14 @@ if (-not $isAdmin) {
 				{
 					$ItemInfoObject.ObjType = "Folder"
 				}
-				$ItemInfoObject.Path = curPath_Web
+				$ItemInfoObject.Path = $curPath_Web
+				$filesize = Get-Size -Path $curPath_PC
+				$ItemInfoObject.Size = Convert-FileSize -Size $filesize
+				
+				$file = Get-Item -Path $curPath_PC
+				$ItemInfoObject.CreationDate = $file.CreationTime.ToString("dd.MM.yyyy HH:mm:ss")
+				$ItemInfoObject.LastWriteTime = $file.LastWriteTime.ToString("dd.MM.yyyy HH:mm:ss")
+				$ItemInfoObject.FileName = $file.Name
 				#Write-Output $ItemInfoObject.ObjType
 				
 				
