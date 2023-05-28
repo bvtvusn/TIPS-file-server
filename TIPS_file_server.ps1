@@ -6,15 +6,27 @@ function Generate-FilePageHtml {
 		[Parameter(Mandatory = $true)]
         [string]$FileUrl
     )
+	
+	$picEextensions = @(".JPG", ".JPEG", ".JFIF", ".PJPEG", ".PJP", ".PNG", ".GIF", ".TIFF", ".BMP", ".PSD", ".SVG", ".APNG", ".AVIF", ".WEBP", ".ICO", ".CUR", ".TIF", ".TIFF")
 
     # Get the file extension
-    $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToLower()
-
+    $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToUpper()
+	
+	$FileType = "text"
+	if ($picEextensions -contains $fileExtension) {
+		$FileType = "picture"
+	}
+	elseif (".PDF" -like $fileExtension){
+		$FileType = "pdf"
+	}
+	
+	
     # Define the HTML code based on the file type
-    switch ($fileExtension) {
-        '.txt' {
+    switch ($FileType) {
+        'text' {
             # Text-based file: Display content in <pre> tag
             $fileContent = Get-Content -Path $FilePath -Raw
+			$escapedContent = [System.Web.HttpUtility]::HtmlEncode($fileContent)
             $htmlCode = @"
 <!DOCTYPE html>
 <html>
@@ -22,12 +34,12 @@ function Generate-FilePageHtml {
 <title>File Viewer</title>
 </head>
 <body>
-<pre>$fileContent</pre>
+<pre>$escapedContent</pre>
 </body>
 </html>
 "@
         }
-        '.png' {
+        'picture' {
             # Image file: Display in <img> tag
             $htmlCode = @"
 <!DOCTYPE html>
@@ -41,7 +53,7 @@ function Generate-FilePageHtml {
 </html>
 "@
         }
-        '.pdf' {
+        'pdf' {
             # PDF file: Display in <embed> tag
             $htmlCode = @"
 <!DOCTYPE html>
@@ -600,7 +612,10 @@ $html += @"
 				  <tbody>
 					<tr><td>
 "@
-					
+					$html += "File Name:"  
+					$html += "</td><td>" 
+					$html += "<a href='$($webAddress)'>$($InfoObject.FileName)</a>"
+					$html += "</td></tr><tr><td>"
 					
 					$html += "Path:"  
 					$html += "</td><td>" 
@@ -624,14 +639,11 @@ $html += @"
 					$html += "$($InfoObject.Size)"
 					$html += "</td></tr><tr><td>"
 					
-					$html += "Download:"  
-					$html += "</td><td>" 
-					$html += "<a href='$($linkpath)'>$($InfoObject.FileName)</a>"
-					$html += "</td></tr><tr><td>"
+					
 					
 					$html += "View:"  
 					$html += "</td><td>" 
-					$html += "<a href='$($linkpath)?page=view'>Here</a>"
+					$html += "<a href='$($linkpath)?page=view'>File content</a>"
 					$html += "</td></tr>"
 					
 					
