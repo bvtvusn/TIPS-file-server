@@ -1,3 +1,74 @@
+function Generate-FilePageHtml {
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({Test-Path $_ -PathType 'Leaf'})]
+        [string]$FilePath,
+		[Parameter(Mandatory = $true)]
+        [string]$FileUrl
+    )
+
+    # Get the file extension
+    $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToLower()
+
+    # Define the HTML code based on the file type
+    switch ($fileExtension) {
+        '.txt' {
+            # Text-based file: Display content in <pre> tag
+            $fileContent = Get-Content -Path $FilePath -Raw
+            $htmlCode = @"
+<!DOCTYPE html>
+<html>
+<head>
+<title>File Viewer</title>
+</head>
+<body>
+<pre>$fileContent</pre>
+</body>
+</html>
+"@
+        }
+        '.png' {
+            # Image file: Display in <img> tag
+            $htmlCode = @"
+<!DOCTYPE html>
+<html>
+<head>
+<title>File Viewer</title>
+</head>
+<body>
+<img src="$FileUrl" alt="Image">
+</body>
+</html>
+"@
+        }
+        '.pdf' {
+            # PDF file: Display in <embed> tag
+            $htmlCode = @"
+<!DOCTYPE html>
+<html>
+<head>
+<title>File Viewer</title>
+</head>
+<body>
+
+
+
+<a href="$FileUrl" target="_blank" rel="noopener noreferrer">Open PDF</a>
+
+</body>
+</html>
+"@
+        }
+        default {
+            Write-Error "Unsupported file type: $fileExtension"
+            return
+        }
+    }
+
+    return $htmlCode
+}
+
+
 function Get-Size {
     param(
         [Parameter(Mandatory = $true)]
@@ -560,7 +631,7 @@ $html += @"
 					
 					$html += "View:"  
 					$html += "</td><td>" 
-					$html += "<a href='$parentfolder'>Here</a>"
+					$html += "<a href='$($linkpath)?page=view'>Here</a>"
 					$html += "</td></tr>"
 					
 					
@@ -657,6 +728,7 @@ if (-not $isAdmin) {
         if ($request.HttpMethod -eq "GET") {
 			
 			$detailPageFlag = $false
+			$viewPageFlag = $false
 			# ----- Check if the Get request contains any parameters ----- #
                         
 			$queryString = $request.Url.Query
@@ -690,6 +762,9 @@ if (-not $isAdmin) {
 				if($name -eq "page" -and $value -eq "info"){
 					$detailPageFlag = $true
 				}
+				if($name -eq "page" -and $value -eq "view"){
+					$viewPageFlag = $true
+				}
 
 			}
 
@@ -697,10 +772,30 @@ if (-not $isAdmin) {
 				break # If listener was set to stop, break immediately to avoid unnecessary errors.
 			}
 				
-			if($detailPageFlag -eq $true -AND $ElementTypeRequested -ne 0){ # element not equal to invalid
+			if($viewPageFlag -eq $true -AND $ElementTypeRequested -ne 0){ # element not equal to invalid
 				# ----- xxx ----- #
                 # 
-                Write-Output "Serving the web page"
+                Write-Output "Serving the file viewer page"
+				
+                $response.ContentType = "text/html"
+                $response.StatusCode = 200
+                $response.StatusDescription = "OK"
+
+				$html = Generate-FilePageHtml -FilePath $curPath_PC -FileUrl $curPath_Web
+				
+				
+				
+
+                
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($html)
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+				
+			}
+			elseif($detailPageFlag -eq $true -AND $ElementTypeRequested -ne 0){ # element not equal to invalid
+				# ----- xxx ----- #
+                # 
+                Write-Output "Serving the details page"
 				
                 $response.ContentType = "text/html"
                 $response.StatusCode = 200
