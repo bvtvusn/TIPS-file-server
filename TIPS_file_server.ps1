@@ -521,21 +521,22 @@ $html += @"
     <input type="submit" value="Stop server" ></input>  
     <input type="hidden" id="cmd" name="cmd" value="stop" />
 </form>
-<hr>
+<br>
 "@
 
 $ruleState = Get-FirewallRuleState -RuleName "Powershell HTTP server port"
-$html += "<p>Firewall port: $ruleState</p>"
+$html += "<div  style='padding: 10px;border-radius: 15px; background-color: #f5f5f5;'><span style='padding:10px;'>  Firewall port $ruleState</span>"
 
 $html += @"
  <form method="GET" action="?" style="display: inline-block;">  
-    <input type="submit" value="Open firewall port" data-inline="true"></input>  
+    <input type="submit" value="Open port" data-inline="true"></input>  
     <input type="hidden" id="setfirewall" name="setfirewall" value="open" />
 </form >
  <form method="GET" action="?" style="display: inline-block;">  
-    <input type="submit" value="Close firewall port" data-inline="true"></input>  
+    <input type="submit" value="Close port" data-inline="true"></input>  
     <input type="hidden" id="setfirewall" name="setfirewall" value="close" />
 </form>
+</div>
 "@
 
 
@@ -562,7 +563,25 @@ $html += @"
 					<input type="submit" value="Upload">
 				</form>	
 			</div>
-		</div>			
+		</div>		
+			
+			
+		<div class="card">
+			<div class="card-header">
+				<h2>Copy / Paste Area</h2>
+			</div>
+			<div class="card-body">
+			
+			<form action="/upload" method="post">
+				
+				<textarea id="textArea" name="text" rows="10" style="width: 100%;    height: 100%;     box-sizing: border-box;">$($globalClipboard)</textarea><br>
+				<p> $($globalClipboard)
+				</p>
+				<input type="submit" value="Upload text">
+			</form>
+				
+			</div>
+		</div>	
 	</div>
 </body>
 </html>
@@ -599,8 +618,6 @@ $html += @"
 	  </svg>
   </a>
 	<div class="container">	
-
-
 	
 		<div class="card">
 			<div class="card-header">
@@ -632,26 +649,17 @@ $html += @"
 					$html += "$($InfoObject.LastWriteTime)"
 					$html += "</td></tr><tr><td>"
 					
-					
-					
 					$html += "Size:"  
 					$html += "</td><td>" 
 					$html += "$($InfoObject.Size)"
 					$html += "</td></tr><tr><td>"
 					
-					
-					
 					$html += "View:"  
 					$html += "</td><td>" 
 					$html += "<a href='$($linkpath)?page=view'>File content</a>"
 					$html += "</td></tr>"
-					
-					
-					
-					
-					
-					
-$html += @"
+														
+					$html += @"
 </tbody>
 				</table>
 				
@@ -663,9 +671,6 @@ $html += @"
 "@
     return $html
 }
-
-
-
 
 
 # Check if the script is running as an administrator
@@ -722,6 +727,7 @@ if (-not $isAdmin) {
     #$basePathPC = "C:\Users\BjørnVegardTveraaen\Downloads"
     $curPath_PC = ""
     $curPath_Web = ""
+	$globalClipboard = ""
 
     Write-Host "Starting main loop."
     # ----- Main loop ----- #
@@ -903,8 +909,43 @@ if (-not $isAdmin) {
             # Store the uploaded file on the computer
             Write-Output "Receiving file"
             Write-Output $curPath_Web
-            $stream = $request.InputStream
-            HTTPstreamToFile -reader $stream -saveFolder $curPath_PC
+			
+			
+			if ($request.ContentType -like "multipart/form-data*")
+			{
+				Write-Output "Found multipart form data"
+				$stream = $request.InputStream
+				HTTPstreamToFile -reader $stream -saveFolder $curPath_PC
+				
+			}
+			else{
+				Write-Output "Found text upload"
+				
+				$stream = $request.InputStream
+				$reader = New-Object System.IO.StreamReader($stream)
+				$temptext = $reader.ReadToEnd()
+				
+				
+				$pattern = "text=(.*)"
+				$match = [regex]::Match($temptext, $pattern)
+
+				if ($match.Success) {
+					$globalClipboard =  [System.Uri]::UnescapeDataString($match.Groups[1].Value).Replace("+", " ")                    
+					Write-Output $globalClipboard
+				} 
+
+
+
+				
+				$reader.Close()
+				$stream.Close()
+		
+		
+				
+			}
+			
+			
+            
             #
             $response.StatusCode = 302
             $response.RedirectLocation = "/"

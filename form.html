@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>My HTML Page</title>
+	<!-- <link rel="shortcut icon" href="https://edgestatic-ehf9gbe6gfdfdec4.z01.azurefd.net/welcome/static/favicon.png"> -->
+	<!-- <link rel="icon" type="image/png" sizes="16x16" href="data:image/png;base64,
+iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAMFBMVEU0OkArMjhobHEoPUPFEBIu
+O0L+AAC2FBZ2JyuNICOfGx7xAwTjCAlCNTvVDA1aLzQ3COjMAAAAVUlEQVQI12NgwAaCDSA0888G
+CItjn0szWGBJTVoGSCjWs8TleQCQYV95evdxkFT8Kpe0PLDi5WfKd4LUsN5zS1sKFolt8bwAZrCa
+GqNYJAgFDEpQAAAzmxafI4vZWwAAAABJRU5ErkJggg==" /> -->
+<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAmUIUAP///wCKiogAXl5cAIo9EwBAQD4AyVgaAHp6dgCoSRYA42MeAC4uLQBNTUsAeDURALhQGABra2cAAAAN3d3dAAAADd3d3d3dAABVVVVVVVUgBVVVVVVVUrABEREREREmZhEREREREmZmmZmZmZkszMyZmZmZkszMzO7u7u4kRERE7u7u4kRERER3d3cv/////3d3cv//////CqooiIiIiIAKooiIiIiIgAAjMzMzMzMAAAAzMzMzAAD4DwAA4AMAAMABAACAAQAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAAgAEAAMADAADwDwAA" />
+</head>
+<body>
+	<h1>Welcome to my HTML Page</h1>
+	<p>This is a paragraph.</p>
+	<form action="/action_page.php">
+  <label for="fname">Send command to server:</label><br>
+  <input type="text" id="cmd" name="cmd" value="exit"><br>
+  
+  <input type="submit" value="Submit">
+</form>
+
+
+<form method="POST" action="?">
+<p><input type="checkbox" name="dori" value="dori" onchange="this.form.submit()"><em> 0 - 5000</em></p>
+<p><input type="checkbox" name="bora" value="bora" onchange="this.form.submit()"><em> 5000 - 1000</em></p>       
+</form>
+
+<form method="GET" action="?">
+<p><input type="checkbox" name="SetFirewall" value="open" onchange="this.form.submit()"><em> Open firewall port </em></p>
+<p><input type="button" name="SetFirewall" value="close" onchange="this.form.submit()"><em> Close firewall port </em></p>       
+</form>
+
+
+<input type="submit" value="Send Request" />
+
+<form class="spacer" action="" method="GET">
+<input class="submit" type="submit" value="Submit" />
+</form>
+
+
+
+ webexample inputs: hidden
+ <form method="GET" action="?" >  
+    <button type="submit">Open firewall port</button>  
+    <input type="hidden" id="setfirewall" name="setfirewall" value="open" />
+</form method="GET" action="?">
+ <form>  
+    <button type="submit">Open firewall port</button>  
+    <input type="hidden" id="setfirewall" name="setfirewall" value="close" />
+</form>
+
+
+
+<a href onclick="event.preventDefault(); location+='&like=like'">Like</a>
+<a href="/topic.php?like=like">Like</a>
+
+
+
+ <form style="display: inline-block;">  
+    <input type="submit" value="Stop server" ></input>  
+    <input type="hidden" id="cmd" name="cmd" value="stop" />
+</form>
+ <form style="display: inline-block;">  
+    <input type="submit" value="Open firewall port" data-inline="true"></input>  
+    <input type="hidden" id="setfirewall" name="setfirewall" value="open" />
+</form method="GET" action="?" >
+ <form style="display: inline-block;">  
+    <input type="submit" value="Close firewall port" data-inline="true"></input>  
+    <input type="hidden" id="setfirewall" name="setfirewall" value="close" />
+</form>
+
+
+
+</body>
+</html>
