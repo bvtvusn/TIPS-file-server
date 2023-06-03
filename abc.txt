@@ -1,8 +1,0 @@
-tests.abc
-æøå
-
-<embed src="$FileUrl" width="100%" height="100%" type="application/pdf">
-
-<p>Open a PDF file <a href="$FileUrl">example</a>.</p>
-
-<object data="$FileUrl" type="application/pdf" width="100%" height="500px">
