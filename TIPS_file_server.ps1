@@ -724,7 +724,7 @@ if (-not $isAdmin) {
 
     $basePathPC = $MyInvocation.MyCommand.Path | Split-Path -Parent
     Write-Host $basePathPC
-    #$basePathPC = "C:\Users\BjørnVegardTveraaen\Downloads"
+    
     $curPath_PC = ""
     $curPath_Web = ""
 	$globalClipboard = ""
