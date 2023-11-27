@@ -546,7 +546,7 @@ $html += @"
 $html += @"
 			</div>
 		</div>
-		<div class="card">
+		<div class="card" id="fileupload">
 			<div class="card-header">
 				<h2>Upload File</h2>
 			</div>
@@ -559,7 +559,7 @@ $html += "<form method='post' action='$curPath_Web' enctype='multipart/form-data
 
 $html += @"
 				
-					<input type="file" name="file">
+					<input type="file" name="file" >
 					<input type="submit" value="Upload">
 				</form>	
 			</div>
@@ -934,21 +934,16 @@ if (-not $isAdmin) {
 					Write-Output $globalClipboard
 				} 
 
-
-
 				
 				$reader.Close()
 				$stream.Close()
 		
-		
-				
 			}
-			
 			
             
             #
             $response.StatusCode = 302
-            $response.RedirectLocation = "/"
+            $response.RedirectLocation = $curPath_Web + "#fileupload" #Navigate back to the same upload section
             $response.Close()
         }
     }
@@ -956,4 +951,4 @@ if (-not $isAdmin) {
 
 
 }
-Read-Host
+#Read-Host
