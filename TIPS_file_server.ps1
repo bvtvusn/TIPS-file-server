@@ -1,3 +1,306 @@
+class EnhancedBinaryReader {
+    # Properties
+    [System.IO.BinaryReader]$Reader
+    [byte[]]$Buffer
+    [int]$BufferSize
+    [int]$BufferPosition
+    [int]$BufferUsedBytes
+
+    # Constructor
+    EnhancedBinaryReader([System.IO.Stream]$stream, [int]$bufferSize) {
+        $this.Reader = [System.IO.BinaryReader]::new($stream)
+        $this.BufferSize = $bufferSize
+        $this.Buffer = [byte[]]::new($bufferSize)
+        $this.BufferPosition = 0
+        $this.BufferUsedBytes = 0
+        $this.FillBuffer()
+    }
+
+    # Methods
+    
+    [void] FillBuffer() {
+        $bufferLength = $this.Buffer.Length
+        $remainingBufferSpace = $this.BufferSize - $this.BufferUsedBytes
+        if ($bufferLength -ne $this.BufferSize){throw "wrong buffer length"}
+
+        # Find the position of the end of valid data in the buffer
+        $endOfValidData = ($this.BufferPosition + $this.BufferUsedBytes) % $bufferLength
+
+        $firstRead = [Math]::Min($bufferLength-$endOfValidData, $remainingBufferSpace)
+        #Write-Host $endOfValidData
+        # Part 1: Fill from end of valid data to end of buffer
+        $bytesRead1 = $this.Reader.Read($this.Buffer, $endOfValidData, $firstRead)
+
+        # Part 2: Fill from start of buffer if there is still space and more to read
+        if ($bytesRead1 -lt $remainingBufferSpace) {
+            $bytesRead2 = $this.Reader.Read($this.Buffer, 0, $remainingBufferSpace - $bytesRead1)
+            $bytesRead1 += $bytesRead2
+        }
+
+        # Update the buffer state
+        $this.BufferUsedBytes += $bytesRead1
+        
+    }
+
+
+    [byte[]] ReadBytes([int]$count) {
+        if ($count -gt $this.GetMaxReadableBytes()) {
+            Write-Warning "Attempting to read more bytes than available in the buffer."
+            $count = $this.GetMaxReadableBytes()
+        }
+
+        #$count = [Math]::Min($getcount,$this.BufferUsedBytes)
+        $readBytes = [byte[]]::new([Math]::Min($count,$this.BufferUsedBytes))
+        $bytesRead = [Math]::Min($count, $this.BufferSize - $this.BufferPosition)
+
+        [Array]::Copy($this.Buffer, $this.BufferPosition, $readBytes, 0, $bytesRead)
+
+        if ($bytesRead -lt $count) {
+            [Array]::Copy($this.Buffer, 0, $readBytes, $bytesRead, $count - $bytesRead)
+        }
+
+        $this.BufferPosition = ($this.BufferPosition + $count) % $this.BufferSize
+        $this.BufferUsedBytes -= $count
+        
+        $this.FillBuffer()  # Refill buffer if needed
+        return $readBytes
+    }
+
+    [string] ReadString([int]$count) {
+        $bytes = $this.ReadBytes($count)
+        return [System.Text.Encoding]::UTF8.GetString($bytes)
+    }
+
+    [byte[]] PeekSequence([int]$count) {
+        if ($count -gt $this.BufferUsedBytes) {
+            throw "Attempting to peek more bytes than available in the buffer."
+        }
+
+        $peekBytes = [byte[]]::new($count)
+
+        $firstCopyLength = [Math]::Min($count, $this.BufferSize - $this.BufferPosition)
+        [Array]::Copy($this.Buffer, $this.BufferPosition, $peekBytes, 0, $firstCopyLength)
+
+        if ($firstCopyLength -lt $count) {
+            [Array]::Copy($this.Buffer, 0, $peekBytes, $firstCopyLength, $count - $firstCopyLength)
+        }
+
+        return $peekBytes
+    }
+
+    [string] PeekString([int]$count) {
+        $bytes = $this.PeekSequence($count)
+        return [System.Text.Encoding]::UTF8.GetString($bytes)
+    }
+
+    [int] GetMaxReadableBytes() {
+        return $this.BufferUsedBytes
+    }
+
+
+
+[int] FindSequence([byte[]]$sequence) {
+    $bufferLength = $this.BufferSize
+    $startIndex = $this.BufferPosition
+
+    $matchCounter = 0
+
+    for ($i = 0; $i -lt $this.BufferUsedBytes; $i++) {
+        $bufferIndex = ($this.BufferPosition + $i) % $bufferLength
+
+        if ($this.Buffer[$bufferIndex] -eq $sequence[$matchCounter]) {
+            $matchCounter++
+
+            if ($matchCounter -eq $sequence.Length) {
+                # Sequence found, return the start index of the match relative to BufferPosition
+                
+                $relativeIndex = ($bufferIndex - $this.BufferPosition + $bufferLength-$sequence.Length +1) % $bufferLength
+                return $relativeIndex
+            }
+        } else {
+            $matchCounter = 0
+        }
+    }
+
+    return -1  # Sequence not found in the buffer
+}
+
+[hashtable] FindBoundary([byte[]]$sequence) {
+
+    $dashcount = 0    
+    while($sequence[$dashcount] -eq 45)
+    {
+        $dashcount ++
+    }
+    
+    #Write-Host $dashcount
+    $strippedSequence = $sequence[$dashcount..($sequence.Length - 1)]   # removing the first dash-bytes in the sequence
+    #Write-Host $strippedSequence
+
+    $bufferLength = $this.BufferSize
+    $startIndex = $this.BufferPosition
+
+    $matchCounter = 0
+	$bufferDashCounter = 0
+
+    for ($i = 0; $i -lt $this.BufferUsedBytes; $i++) {
+        $bufferIndex = ($this.BufferPosition + $i) % $bufferLength
+        $bufferByte = $this.Buffer[$bufferIndex]
+		
+		
+        if ($bufferByte -eq $strippedSequence[$matchCounter] -and $bufferDashCounter -ge $dashcount) {  # The dashcounter must be good AND we must see the start character
+            $matchCounter++
+
+            if ($matchCounter -eq $strippedSequence.Length) {
+                # Sequence found, return the start index of the match relative to BufferPosition
+                
+                $relativeIndex = ($bufferIndex - $this.BufferPosition + $bufferLength-$strippedSequence.Length-$bufferDashCounter +1) % $bufferLength
+                
+                $boundaryLength = $strippedSequence.Length + $bufferDashCounter
+
+				return @{
+					index = $relativeIndex
+					boundaryLength = $boundaryLength
+				}
+				
+            }
+        } else {
+            $matchCounter = 0
+        }
+		
+		
+		
+		if ($bufferByte -eq 45) {
+			$bufferDashCounter++ # Increment dashcounter
+		}
+		elseif($matchCounter -eq 0){
+			$bufferDashCounter = 0	#Reset dascounter if no dash was found AND no string match was found.
+		}
+    }
+
+    #return -1  # Sequence not found in the buffer
+    return @{
+        index          = -1
+        boundaryLength = 0}
+}
+
+
+
+    [void] PrintStatus() {
+    Write-Host "Buffer Length: $($this.Buffer.Length) Buffer Size: $($this.BufferSize) Buffer Position: $($this.BufferPosition) Used Bytes: $($this.BufferUsedBytes) Remaining Bytes in Stream: $($this.Reader.BaseStream.Length - $this.Reader.BaseStream.Position) Get max readable: $($this.GetMaxReadableBytes())"
+    }
+
+
+    [void] Close() {
+        $this.Reader.Close()
+    }
+}
+
+function ReadHeaders($reader) {
+    $headers = @{}
+    $CRLF = [byte[]](13, 10)
+
+    while ($true) {
+        $position = $enhancedReader.FindSequence($CRLF)
+        $headerstring = $enhancedReader.ReadString($position)
+        $trash = $enhancedReader.ReadString(2)
+        $peekedBytes = $enhancedReader.PeekSequence(2)
+
+        $headerParts = $headerstring -split ":\s", 2
+        if ($headerParts.Count -eq 2) {
+            $headers[$headerParts[0]] = $headerParts[1].Trim()
+        }
+
+        if ($peekedBytes[0] -eq 13 -and $peekedBytes[1] -eq 10) {
+            $trash = $enhancedReader.ReadString(2)
+            return ,$headers
+        }
+    }
+    Write-Host $headers.keys
+    return ,$headers
+}
+
+function HandleMultipartFormData {
+    param (
+        [System.IO.Stream]$stream,
+        [string]$contentType,
+        [string]$storageDirectory
+    )
+
+    $boundarystring = $contentType -split 'boundary=' | Select-Object -Last 1
+    $boundary = [System.Text.Encoding]::UTF8.GetBytes($boundarystring)
+    $enhancedReader = [EnhancedBinaryReader]::new($stream, 4096)
+
+    
+    $readingPacketData = $true
+
+    while ($readingPacketData) {
+        $fileName = $null
+        $headers = ReadHeaders $enhancedReader
+
+        if ($headers.ContainsKey("Content-Disposition") -and $headers["Content-Disposition"].StartsWith("form-data")) {
+            $uploadFileName = $headers["Content-Disposition"] -split ';' | Where-Object { $_ -match "filename=" } | ForEach-Object { $_ -replace '.*filename="(.+)"', '$1' }
+            $TrySaveAt = Join-Path $storageDirectory $uploadFileName
+            $fileName = Get-UniqueFileName -filename $TrySaveAt
+            
+            
+            Write-Host "Saving file as: $($fileName)"
+            $inFileData = $true
+            $makeFile = $fileName
+        }
+
+        
+        
+        $fileStream = [System.IO.File]::OpenWrite($makeFile)
+
+        while ($inFileData) {
+            
+			$result = $enhancedReader.FindBoundary($boundary)
+			$boundaryPosition = $result.index
+			$foundBoundaryLength = $result.boundaryLength
+			
+
+            
+            if ($boundaryPosition -ge 0) {
+                $readBytes = $enhancedReader.ReadBytes($boundaryPosition - 2)
+                $fileStream.Write($readBytes, 0, $readBytes.Length)
+
+                $trash = $enhancedReader.ReadString($foundBoundaryLength + 2)
+               
+
+                $endCheck = $enhancedReader.PeekString(2)
+                #Write-Host $endCheck
+
+                if ($endCheck -eq "--") {
+                    $readingPacketData = $false
+                }
+
+                $inFileData = $false
+                
+            } else {
+
+                $maxReadLength = [Math]::Min($enhancedReader.GetMaxReadableBytes(), $enhancedReader.BufferSize - $boundarystring.Length)
+                $readBytes = $enhancedReader.ReadBytes($maxReadLength )
+                $fileStream.Write($readBytes, 0, $readBytes.Length)
+            }
+            if($enhancedReader.GetMaxReadableBytes() -eq 0){ 
+                $inFileData = $false            
+            }
+        }
+        $fileStream.Close()
+
+        if ($enhancedReader.GetMaxReadableBytes() -lt 1) { 
+            $readingPacketData = $false
+            
+            }
+    }
+
+    $enhancedReader.Close()
+    
+}
+
+
+
 function Generate-FilePageHtml {
     param (
         [Parameter(Mandatory = $true)]
@@ -196,106 +499,6 @@ function Get-UniqueFileName($filename) {
     return $filename
 }
 
-
-function HTTPstreamToFile([System.IO.BinaryReader]$reader,[String]$saveFolder){
-    $outputStream = 0 # Stream
-    $outputWriter = 0 # Stream
-
-    # MULTIPART FORM DATA
-    $parseState = 0 # 0 = searchForStart, 1 = Search for end of header, 2 = Search for end of filecontent, 3 = done.
-    $BoundaryString = New-Object byte[] 200
-    $lastTwoBytes = New-Object byte[] 2
-    $lastTwoBytes_Length = 0
-    $matchFound_prev = $false
-
-    # Read from the stream into a buffer
-    $buffer = New-Object byte[] 2048
-    $delimiterBytes = [byte[]]@(13, 10)
-    $delimiterMatchLength = 0
-    $buffer_usedLength = 0
-    $done = $false
-
-    while (!$done){
-        $buffer_usedLength += $reader.Read($buffer, $buffer_usedLength, $buffer.Length - $buffer_usedLength)
-        $done = (0 -eq $buffer_usedLength) # Check if we are done only when we dont find more matches.    
-    
-        $matchFound_prev = $matchFound
-        $matchFound = $false
-        $removelength = $buffer_usedLength # matchindex -> removelength
-        $i = 0
-        while((!$matchFound) -and ($i -lt  $buffer_usedLength)){  # find first occurence of the delimiter
-            if ($buffer[$i] -eq $delimiterBytes[$delimiterMatchLength]){
-                $delimiterMatchLength +=1
-            }
-            else{
-                $delimiterMatchLength = 0
-            }
-            if ($delimiterMatchLength -eq 2){
-                 #Write-Output "match"  
-                 $removelength = $i+1;
-                 $delimiterMatchLength = 0
-                 $matchFound = $true
-            }        
-            $i++
-        }    
-        if (!$done){
-            # HANDLE THE BUFFER HERE
-                    
-            if ($parseState -eq 0){
-                $parseState = 1
-                $BoundaryString = $buffer[0..($removelength-3)]
-                #Write-Output $BoundaryString
-                #[System.Console]::WriteLine([System.Text.Encoding]::ASCII.GetString($BoundaryString, 0, $BoundaryString.Length))
-            }
-            elseif($parseState -eq 1){
-            
-                $line = [System.Text.Encoding]::ASCII.GetString($buffer[0..($buffer_usedLength-1)])
-                       
-                $regex = '(?<=filename=").*?(?=")'
-                if ($line -match $regex) {  # If filename is found make a filestream to store the file.
-                    $filename = $matches[0]
-                
-                    $outputFile = Join-Path $saveFolder $fileName
-                    $outputFile = Get-UniqueFileName -filename $outputFile
-                    Write-Output $outputFile
-                    $outputStream = New-Object System.IO.FileStream($outputFile, [System.IO.FileMode]::Create)
-                    $outputWriter = New-Object System.IO.BinaryWriter($outputStream)                
-                } 
-
-                if($buffer[0]-eq 13 -and $buffer[1] -eq 10 -and $removelength -eq 2 -and $matchFound_prev) # Found empty line
-                { 
-                    $parseState = 2
-                }
-            }
-            elseif($parseState -eq 2){
-            
-                $result = Compare-Object -ReferenceObject $BoundaryString -DifferenceObject $buffer[0..($BoundaryString.Length-1)] -SyncWindow 0
-                if ($result.Count -eq 0) {
-                    $parseState = 3
-                
-                } else {                
-                    $outputWriter.Write($lastTwoBytes, 0, $lastTwoBytes_Length) # Write the two last bytes from previous iteration
-
-                    $lastTwoBytes[0]=$buffer[$removelength-2] # Save the two last bytes from the current iteration
-                    $lastTwoBytes[1]=$buffer[$removelength-1]
-                    $lastTwoBytes_Length = [Math]::Min(2,$buffer_usedLength)
-
-                    $outputWriter.Write($buffer, 0, $removelength-2) # Write bytes to file except the two last
-                }
-            
-            }
-            elseif($parseState -eq 3){
-                # Dont do anything
-            }               
-        }      
-        $buffer_usedLength -= $removelength 
-        #[System.Buffer]::BlockCopy($buffer, $removelength, $buffer, 0, $buffer_usedLength)        
-        [System.Array]::Copy($buffer, $removelength, $buffer, 0, $buffer_usedLength)                  
-    }
-$outputWriter.Close()
-$outputStream.Close()
-
-}
 
 function GetCSS(){
 	$myCss = @"
@@ -559,8 +762,8 @@ $html += "<form method='post' action='$curPath_Web' enctype='multipart/form-data
 
 $html += @"
 				
-					<input type="file" name="file" >
-					<input type="submit" value="Upload">
+					<input title="fileuploadControl" type="file" name="file" multiple>
+					<input title="submitControl" type="submit" value="Upload">
 				</form>	
 			</div>
 		</div>		
@@ -611,7 +814,7 @@ $html += @"
 	<header class="header">
     <h1>TIPS - Powershell File Server</h1>
   </header>
-  <a class="container" href="javascript:history.back() style="color: black;">
+  <a class="container" HREF="javascript:history.go(-1)" style="color: black;">
 	  <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" class="bi bi-box-arrow-left" viewBox="0 0 16 16">
 		  <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0v2z"/>
 		  <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/>
@@ -913,10 +1116,16 @@ if (-not $isAdmin) {
 			
 			if ($request.ContentType -like "multipart/form-data*")
 			{
-				Write-Output "Found multipart form data"
+				Write-Output "User uploading data..."
 				$stream = $request.InputStream
-				HTTPstreamToFile -reader $stream -saveFolder $curPath_PC
 				
+				$executionTime = Measure-Command {
+                    HandleMultipartFormData -stream $stream -contentType $request.ContentType -storageDirectory $curPath_PC
+                }
+
+                # Display the elapsed time
+                Write-Host "Finished receiving data. Elapsed Time: $($executionTime.TotalSeconds) seconds"
+                
 			}
 			else{
 				Write-Output "Found text upload"
