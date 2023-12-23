@@ -279,7 +279,7 @@ function HandleMultipartFormData {
                 
             } else {
 
-                $maxReadLength = [Math]::Min($enhancedReader.GetMaxReadableBytes(), $enhancedReader.BufferSize - $boundarystring.Length)
+                $maxReadLength = [Math]::Min($enhancedReader.GetMaxReadableBytes(), $enhancedReader.BufferSize - $boundarystring.Length-6)
                 $readBytes = $enhancedReader.ReadBytes($maxReadLength )
                 $fileStream.Write($readBytes, 0, $readBytes.Length)
             }
